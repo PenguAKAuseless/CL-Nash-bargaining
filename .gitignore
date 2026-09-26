@@ -1,0 +1,24 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# Downloaded datasets (CIFAR-100 is ~170 MB); torchvision refetches on demand.
+data/
+
+# Transient stdout/stderr redirection from detached long-running experiment
+# launches (see e.g. PowerShell Start-Process calls); the real results live
+# in logs/*.jsonl, which IS tracked.
+logs/*_run.out.log
+logs/*_run.err.log
+
+# TensorBoard event files (src/cl_bargain/tb.py) -- for live monitoring of a
+# run in progress, not a reproducibility artifact; the real results live in
+# logs/*.jsonl.
+runs/

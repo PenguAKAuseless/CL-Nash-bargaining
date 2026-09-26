@@ -1,0 +1,83 @@
+[project]
+name = "cl-bargain"
+version = "0.2.0"
+description = "Continual learning as a bargaining game with absent players"
+readme = "README.md"
+requires-python = ">=3.12"
+license = "MIT"
+keywords = [
+    "continual-learning",
+    "catastrophic-forgetting",
+    "nash-bargaining",
+    "multi-task-optimization",
+    "game-theory",
+]
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "numpy>=2.0",
+    "scipy>=1.14",
+    "matplotlib>=3.9",
+    "pyyaml>=6.0",
+]
+
+[project.optional-dependencies]
+# Real-data experiments (E6/E7) only. Nothing under src/cl_bargain/ outside
+# streams/cifar.py and bargain/curvature.py's torch-backed estimators may
+# import torch.
+torch = ["torch>=2.5", "torchvision>=0.20"]
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "cl_bargain"
+
+[tool.uv]
+system-certs = true
+
+[[tool.uv.index]]
+name = "pytorch-cu124"
+url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu124" }
+torchvision = { index = "pytorch-cu124" }
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "experiments"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "PT", "PTH", "NPY"]
+
+[tool.ruff.lint.per-file-ignores]
+"experiments/*" = ["PLR2004"]
+# `import torch.nn.functional as F` is the universal torch idiom.
+"src/cl_bargain/streams/backbone.py" = ["N812"]
+
+[tool.ruff.lint.pep8-naming]
+# Mathematical symbols retain conventional names for readability.
+extend-ignore-names = [
+    "H", "H_i", "H_bar", "G", "J", "A", "B", "K", "S", "S_i", "Z", "U_max",
+    "Delta", "Delta0", "Delta_new", "Delta_hat",
+    "N", "Hi", "Hs", "Hd", "I", "E", "lambda_min_K", "lam_min_K",
+    "v1_lammin_K", "v1_lammin_H", "lambda_min_K_vals",
+    "C", "C_full", "C_beta", "C_admitted", "Deltas", "T", "V", "M", "U",
+    "H_red", "Delta_reduced",
+    "F_probe", "F_replay", "F_full_task",
+    "res_V", "Delta_V", "reduced_G", "res_G", "Delta_G",
+    "F", "F_split", "H_true", "H_hat", "Delta_star", "X",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.16.1",
+    "tensorboard>=2.18",
+]

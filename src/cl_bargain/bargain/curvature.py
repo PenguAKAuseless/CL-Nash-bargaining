@@ -1,19 +1,4 @@
-"""Curvature construction and PSD utilities.
-
-The pure-numpy pieces (E0/E1, closed-form sandbox curvature) are at the top
-of this file and keep the module importable with no torch installed. The
-torch-backed estimators below import torch locally inside
-each function body -- this file and streams/cifar.py are the only two
-places in this repo allowed to import torch (see pyproject.toml).
-
-Candidates, in order of preference:
-  1. function-space Jacobian J^T J on stored inputs (`jacobian_outer_vector_product`)
-  2. GGN on the buffer (`ggn_vector_product`) -- expected to collapse, included
-    to demonstrate it: under cross-entropy, GGN's middle factor
-     diag(p)-pp^T -> 0 as the model overfits the exact examples it is replayed on)
-  3. diagonal empirical Fisher snapshotted at the task boundary (`diagonal_empirical_fisher`)
-  4. K-FAC -- not implemented (lowest preference; out of scope for this pass)
-"""
+"""Curvature construction, PSD helpers, and torch-backed curvature estimators."""
 
 from __future__ import annotations
 
@@ -36,24 +21,11 @@ def min_eigval(H: np.ndarray) -> float:
     return float(np.linalg.eigvalsh(H).min())
 
 
-# ---- torch-backed estimators (E4) -----------------------------------------
-
 
 def ggn_vector_product(
     model, x, lo: int, hi: int, v_dict, chunk_size: int = 128, weighted: bool = True
 ):
-    """(GGN of the task-restricted logits) @ v, batched over x.
-
-    weighted=True: full GGN, J^T (diag(p)-pp^T) J -- the "GGN on buffer" /
-    "ground truth GGN" estimator (candidate 2), computed via one JVP + one
-    VJP per chunk (no Jacobian ever formed explicitly). Validated against an
-    explicit brute-force Jacobian construction on a toy model (see
-    tests/test_curvature_torch.py).
-
-    weighted=False: J^T J with no softmax reweighting -- the function-space
-    Jacobian estimator (candidate 1), a property of the network's outputs
-    alone, not of how well it fits these particular inputs.
-    """
+    """(GGN of the task-restricted logits) @ v; weighted=False gives (J^T J) @ v instead."""
     import torch
     from torch.func import functional_call, jvp, vjp
 
@@ -76,11 +48,7 @@ def ggn_vector_product(
             u = jv
         _, vjp_fn = vjp(f, params)
         (hv_chunk,) = vjp_fn(u)
-        # vjp already sums its cotangent's contribution over the chunk's
-        # batch dimension -- accumulate that sum across chunks directly and
-        # divide by the total example count once at the end. Multiplying by
-        # `n` here would double-count (caught by
-        # tests/test_curvature_torch.py against a brute-force Jacobian).
+        # vjp already sums over the chunk; normalise by the total count at the end
         for k in total:
             total[k] = total[k] + hv_chunk[k]
         n_total += n
@@ -93,16 +61,7 @@ def jacobian_outer_vector_product(model, x, lo: int, hi: int, v_dict, chunk_size
 
 
 def diagonal_empirical_fisher(model, x, y, lo: int, hi: int, chunk_size: int = 64):
-    """Diagonal empirical Fisher: per-parameter mean squared per-example
-    gradient of the task-restricted cross-entropy loss (EWC-style).
-
-    Deliberately NOT `torch.func.vmap` + `grad`: during E2's calibration pass
-    that combination triggered a fatal CUDA error on this machine's GPU/
-    driver that then poisoned the CUDA context for the rest of the process
-    (every subsequent, otherwise-unrelated CUDA call failed too, including
-    ones that never touch vmap). A plain per-example loop over ordinary
-    autograd is slower but avoids that code path entirely.
-    """
+    """Diagonal empirical Fisher of the task-restricted cross-entropy (per-example loop)."""
     import torch
     import torch.nn.functional as f
 
@@ -126,8 +85,7 @@ def diagonal_empirical_fisher(model, x, y, lo: int, hi: int, chunk_size: int = 6
 
 
 def random_probe(param_shapes: dict, rng, device):
-    """A random direction v (dict matching param shapes), unit L2 norm over
-    the flattened parameter vector."""
+    """Random parameter-shaped direction with unit L2 norm."""
     import torch
 
     v = {

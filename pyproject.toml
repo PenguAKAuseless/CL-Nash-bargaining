@@ -25,9 +25,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# Real-data experiments (E6/E7) only. Nothing under src/cl_bargain/ outside
-# streams/cifar.py and bargain/curvature.py's torch-backed estimators may
-# import torch.
 torch = ["torch>=2.5", "torchvision>=0.20"]
 
 [build-system]
@@ -59,11 +56,9 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "A", "C4", "SIM", "RUF", "PT", "PT
 
 [tool.ruff.lint.per-file-ignores]
 "experiments/*" = ["PLR2004"]
-# `import torch.nn.functional as F` is the universal torch idiom.
 "src/cl_bargain/streams/backbone.py" = ["N812"]
 
 [tool.ruff.lint.pep8-naming]
-# Mathematical symbols retain conventional names for readability.
 extend-ignore-names = [
     "H", "H_i", "H_bar", "G", "J", "A", "B", "K", "S", "S_i", "Z", "U_max",
     "Delta", "Delta0", "Delta_new", "Delta_hat",
@@ -78,6 +73,7 @@ extend-ignore-names = [
 
 [dependency-groups]
 dev = [
+    "pytest>=9.2.0",
     "ruff>=0.16.1",
     "tensorboard>=2.18",
 ]

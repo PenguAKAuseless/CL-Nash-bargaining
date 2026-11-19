@@ -1,1 +1,1 @@
-"""Curvature-utility Nash bargain: utilities, solver, allocation, curvature estimators."""
+"""Curvature-utility Nash bargain: utilities, solver, curvature estimators, baselines."""

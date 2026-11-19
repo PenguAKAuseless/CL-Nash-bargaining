@@ -1,1 +1,1 @@
-"""Data streams: the quadratic sandbox (exact ground truth) and, later, Split-CIFAR100."""
+"""Data streams, replay buffers, backbone and continual-learning methods."""

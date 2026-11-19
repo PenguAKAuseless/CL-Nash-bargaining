@@ -1,8 +1,4 @@
-"""Split-CIFAR100 stream, held entirely on the GPU.
-
-Torch-only module -- this and bargain/curvature.py's estimator functions are
-the only places in this repo allowed to import torch (see pyproject.toml).
-"""
+"""Split-CIFAR100 stream, held entirely on the device."""
 
 from __future__ import annotations
 
@@ -85,9 +81,7 @@ class SplitCIFAR100:
             self.tasks.append(task)
             start = hi
 
-        # Task-incremental training: with task_masked, the loss of an example
-        # sees only the logits of its own task (methods.py's `stream_loss`),
-        # so class_mask[y] is the set of logits the label y competes with.
+        # task-masked: class_mask[y] marks the logits label y competes with
         self.class_mask = None
         if task_masked:
             owner = torch.empty(self.n_classes, dtype=torch.long, device=device)

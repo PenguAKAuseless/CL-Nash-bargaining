@@ -1,9 +1,4 @@
-"""Flatten/unflatten a model's parameters to/from a single vector (torch).
-
-Needed by the bargain-based training methods (E2): the numpy bargain solver
-(bargain/solver.py) operates on flat vectors, and the update Delta it
-produces has to be written back into the model's actual parameter tensors.
-"""
+"""Flatten/unflatten a model's parameters to/from a single vector."""
 
 from __future__ import annotations
 

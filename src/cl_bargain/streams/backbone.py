@@ -1,15 +1,4 @@
-"""Reduced ResNet-18 for CIFAR, with GroupNorm instead of BatchNorm.
-
-The architecture uses a 3x3 stem and no max-pool so 32x32 inputs survive to
-the final stage. GroupNorm replaces BatchNorm throughout.
-
-BatchNorm breaks the matrix-free reduction used by the bargain
-bargain (E6/E7) -- with players' batches concatenated, its statistics are
-computed across the union, so a per-player loss no longer depends on that
-player's data alone. GroupNorm normalises per-example (over channel groups),
-so it has no such cross-example coupling. Used here too (not just E6/E7) so
-one trained checkpoint is reusable across experiments.
-"""
+"""Reduced ResNet-18 for CIFAR with GroupNorm, so outputs do not depend on batch composition."""
 
 from __future__ import annotations
 
@@ -31,9 +20,7 @@ def group_norm(num_channels: int, max_groups: int = 32) -> nn.GroupNorm:
 
 
 def make_norm_layer(norm: str):
-    """norm='group' (default) or 'batch' for the normalization ablation
-    asks for, to MEASURE the induced error from concatenated-batch player
-    coupling, not to use in place of GroupNorm."""
+    """Normalization layer factory: 'group' (default) or 'batch' (ablation only)."""
     if norm == "group":
         return group_norm
     if norm == "batch":
@@ -69,8 +56,7 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    """Reduced ResNet-18, GroupNorm by default (norm='batch' is the E6
-    ablation arm only) and a single linear head over all classes."""
+    """Reduced ResNet-18 with a single linear head over all classes."""
 
     def __init__(self, num_classes: int, nf: int = 20, norm: str = "group") -> None:
         super().__init__()

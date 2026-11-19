@@ -1,7 +1,4 @@
-"""Replay buffer with reservoir sampling over the training stream.
-
-The buffer supports replay and a held-out probe split for calibration.
-"""
+"""Reservoir replay buffers, optionally with a held-out probe slice."""
 
 from __future__ import annotations
 
@@ -9,9 +6,7 @@ import torch
 
 
 class ReservoirBuffer:
-    """Each example presented gets a capacity/n_seen chance of replacing a
-    uniformly chosen resident, so the buffer is a uniform sample of
-    everything presented so far."""
+    """Uniform reservoir sample of every example presented so far."""
 
     def __init__(self, capacity: int, device: torch.device) -> None:
         self.capacity = capacity
@@ -60,20 +55,7 @@ class ReservoirBuffer:
 
 
 class ProbeReplayBuffer:
-    """Probe slice: each absent task's stored
-    examples are partitioned into a REPLAY slice (enters the training loss)
-    and a PROBE slice (never does; used only to measure the realised
-    per-step loss change and to fit the certificate constants of Section
-    "Fitting the certificate constants from replay telemetry"). Both slices
-    must be drawn from the same distribution -- realised here as two
-    independent `ReservoirBuffer`s, with each incoming example routed to the
-    probe reservoir i.i.d. with probability `probe_fraction`, rather than as
-    a single shared reservoir with a post-hoc split (which would correlate
-    the two slices through the same replacement events).
-
-    `ReservoirBuffer` itself is untouched: existing callers (E2/E6) keep
-    using it directly and are unaffected by this wrapper.
-    """
+    """Replay slice (trained on) and probe slice (never trained on) as two reservoirs."""
 
     def __init__(self, capacity: int, probe_fraction: float, device: torch.device) -> None:
         if not 0.0 <= probe_fraction < 1.0:
@@ -102,19 +84,15 @@ class ProbeReplayBuffer:
 
     @property
     def task_sizes(self) -> dict[int, int]:
-        """Replay-slice sizes -- what streams/methods.py's bargain_step uses
-        to decide which players are "active" (present in the buffer)."""
+        """Replay-slice sizes per task."""
         return self.replay.task_sizes
 
     def held(self, task: int) -> torch.Tensor:
-        """The REPLAY slice for `task` -- enters the training loss, exactly
-        like `ReservoirBuffer.held`."""
+        """Replay slice for `task`."""
         return self.replay.held(task)
 
     def probe_held(self, task: int) -> torch.Tensor:
-        """The PROBE slice for `task` (def:probe) -- never replayed; used
-        only to measure realised loss change and to fit certificate
-        constants (bargain/certificate.py's `calibrate_lp`)."""
+        """Probe slice for `task`; never replayed."""
         if self.probe is None:
             return torch.zeros(0, dtype=torch.long, device=self.replay.device)
         return self.probe.held(task)

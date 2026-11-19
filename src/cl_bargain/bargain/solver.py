@@ -1,11 +1,4 @@
-"""Damped Newton solver for the log-slack bargaining program.
-
-    Delta* = argmax_Delta  sum_i alpha_i log s_i(Delta)      (no trust region)
-
-Feasible start: Delta = -t * g_0 / ||g_0||, t halved until all slacks are
-positive. Backtracking line search rejects any step leaving the
-positive-slack domain. Converges on ||grad phi|| < tol.
-"""
+"""Damped Newton solver for the log-slack bargaining program."""
 
 from __future__ import annotations
 
@@ -38,25 +31,16 @@ def feasible_start(
     t0: float = 1.0,
     max_halvings: int = 200,
 ) -> tuple[np.ndarray | None, int]:
-    """Delta = -t g_0/||g_0||, halving t until all slacks are positive.
-
-    Returns (Delta, n_halvings); Delta is None if no t in [t0 * 2^-max_halvings, t0]
-    is feasible (should only happen for pathological / zero-budget instances).
-    """
+    """Delta = -t g_0/||g_0||, halving t until feasible; returns (Delta or None, n_halvings)."""
     zero = np.zeros(problem.p)
     if problem.feasible(zero):
-        # Trivially feasible when every tau_i > 0 (true whenever the live
-        # task also has slack budget; the CL convention tau[0] == 0 is the
-        # one case where this is NOT feasible, which is exactly why the
-        # the t-halving search below is needed).
+        # feasible at zero whenever every tau_i > 0
         return zero, 0
 
     g0 = problem.g[0]
     norm_g0 = np.linalg.norm(g0)
     if norm_g0 < _EPS_NORM:
-        # Live-task gradient is (numerically) zero: any small step is neutral
-        # for player 0, so search along the steepest-descent direction of the
-        # absent tasks' combined loss instead.
+        # zero live-task gradient: use the absent tasks' combined descent direction
         direction = -problem.g[1:].sum(axis=0)
         norm_dir = np.linalg.norm(direction)
         if norm_dir < _EPS_NORM:
@@ -92,8 +76,7 @@ def solve(
             fs_ok = False
             Delta0 = np.zeros(problem.p)
     elif not problem.feasible(Delta0):
-        # Warm start from a previous (now infeasible, e.g. after a task
-        # boundary changed n) point: fall back to a fresh feasible start.
+        # infeasible warm start: fall back to a fresh feasible start
         Delta0, fs_halvings = feasible_start(problem)
         if Delta0 is None:
             fs_ok = False
@@ -117,8 +100,7 @@ def solve(
 
         step = _newton_step(hess, grad, p)
         if step @ grad <= 0:
-            # Not an ascent direction (indefinite Hessian near a norm-penalty
-            # kink) -- fall back to steepest ascent.
+            # not an ascent direction: fall back to steepest ascent
             step = grad / grad_norm
 
         t = 1.0
@@ -153,8 +135,7 @@ def solve(
 
 
 def _newton_step(hess: np.ndarray, grad: np.ndarray, p: int) -> np.ndarray:
-    """Solve hess @ step = -grad, i.e. step = -hess^{-1} grad, with LM damping
-    if hess is (numerically) singular or not negative definite enough."""
+    """Newton step -hess^{-1} grad, Levenberg-Marquardt damped until it ascends."""
     damp = 0.0
     eye = np.eye(p)
     for _ in range(30):
